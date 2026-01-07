@@ -9,6 +9,7 @@ arch:
   - armv7
 startup: application
 init: false
+hassio_api: true
 ports:
   10700/tcp: 10700
 options:
