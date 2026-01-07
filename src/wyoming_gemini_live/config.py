@@ -95,6 +95,7 @@ class Settings:
 
         ha_token = _first(
             _env("HA_TOKEN"),
+            _env("SUPERVISOR_TOKEN"),
             options.get("ha_token") if isinstance(options, Mapping) else None,
         )
         if not ha_token:
