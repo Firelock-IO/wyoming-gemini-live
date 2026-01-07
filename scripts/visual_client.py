@@ -117,7 +117,7 @@ async def main():
 
     # Output Audio Stream
     output_stream = sd.OutputStream(
-        samplerate=args.rate, channels=1, dtype='int16'
+        samplerate=args.rate, channels=1, dtype='int16', latency='low'
     )
     output_stream.start()
 

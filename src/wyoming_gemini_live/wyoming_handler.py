@@ -93,7 +93,6 @@ class GeminiLiveEventHandler(AsyncEventHandler):
         await self.write_event(AudioStart(rate=rate_hz, width=2, channels=1).event())
 
     async def _send_audio_chunk(self, pcm16: bytes, rate_hz: int) -> None:
-    async def _send_audio_chunk(self, pcm16: bytes, rate_hz: int) -> None:
         _LOGGER.debug("Sending AudioChunk (%d bytes) to client", len(pcm16))
         await self.write_event(AudioChunk(rate=rate_hz, audio=pcm16, timestamp=0).event())
         _LOGGER.debug("AudioChunk sent.")
