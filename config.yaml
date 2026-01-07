@@ -1,0 +1,40 @@
+name: "Wyoming Gemini Live"
+version: "0.1.0"
+slug: "wyoming_gemini_live"
+description: "Gemini Live (native audio) gateway with Home Assistant tool control, exposed via Wyoming (TCP)."
+url: "https://github.com/yourname/wyoming-gemini-live"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+startup: application
+init: false
+ports:
+  10700/tcp: 10700
+options:
+  gemini_api_key: ""
+  ha_url: "http://supervisor/core"
+  ha_token: ""
+  model: "gemini-2.5-flash-native-audio-preview-12-2025"
+  allowed_domains:
+    - light
+    - switch
+    - cover
+    - climate
+    - lock
+    - scene
+    - script
+  entity_allowlist: []
+  entity_blocklist: []
+  max_context_entities: 200
+  log_level: "info"
+schema:
+  gemini_api_key: str
+  ha_url: str
+  ha_token: str
+  model: str
+  allowed_domains: [str]
+  entity_allowlist: [str]
+  entity_blocklist: [str]
+  max_context_entities: int
+  log_level: list(trace|debug|info|warning|error|critical)

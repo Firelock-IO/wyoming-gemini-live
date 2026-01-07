@@ -1,0 +1,16 @@
+services:
+  wyoming-gemini-live:
+    build: .
+    container_name: wyoming-gemini-live
+    restart: unless-stopped
+    ports:
+      - "10700:10700"
+    env_file:
+      - .env
+    environment:
+      # Override defaults here if desired
+      # - HA_URL=http://homeassistant.local:8123
+      # - MODEL=gemini-2.5-flash-native-audio-preview-12-2025
+      # - LOG_LEVEL=info
+      # - ALLOWED_DOMAINS=light,switch,cover,climate,lock,scene,script
+      - PORT=10700
