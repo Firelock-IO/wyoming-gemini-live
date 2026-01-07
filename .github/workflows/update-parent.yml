@@ -1,0 +1,43 @@
+name: Update Parent Repo
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  update-parent:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Parent Repo
+        uses: actions/checkout@v4
+        with:
+          repository: Firelock-IO/firelock-ha-addons
+          token: ${{ secrets.PAT_TOKEN }}
+          submodules: true
+          fetch-depth: 0
+
+      - name: Update Submodule
+        run: |
+          git config user.name "GitHub Actions Bot"
+          git config user.email "actions@github.com"
+          
+          # Pull the latest commit for the submodule 'wyoming-gemini-live'
+          # NOTE: Ensure the submodule path matches what you added in the parent repo (e.g., 'wyoming-gemini-live' or 'gemini-live')
+          git submodule update --remote vyoming-gemini-live || git submodule update --remote gemini-live || echo "Submodule update attempted"
+          
+          # We'll just look for changes in the likely folder names
+          if [[ -d "wyoming-gemini-live" ]]; then
+             git add wyoming-gemini-live
+          elif [[ -d "gemini-live" ]]; then
+             git add gemini-live
+          fi
+
+          # Check if there are changes
+          if [[ -n $(git status -s) ]]; then
+            git commit -m "Auto-update: Bump gemini-live submodule to latest commit"
+            git push
+            echo "Parent repo updated successfully!"
+          else
+            echo "No changes detected in submodule."
+          fi
