@@ -84,6 +84,9 @@ class HomeAssistantClient:
             async with session.get(url, headers=self._headers()) as resp:
                 if resp.status != 200:
                     text = await resp.text()
+                    if resp.status == 401:
+                        _LOGGER.warning("Home Assistant is not authorized (401). Check SUPERVISOR_TOKEN or 'ha_token' option.")
+                        return []
                     raise RuntimeError(f"HA /api/states failed: {resp.status} {text}")
                 data = await resp.json()
                 if not isinstance(data, list):

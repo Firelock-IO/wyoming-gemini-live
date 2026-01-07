@@ -99,7 +99,11 @@ class Settings:
             options.get("ha_token") if isinstance(options, Mapping) else None,
         )
         if not ha_token:
+            print("DEBUG: No HA_TOKEN or SUPERVISOR_TOKEN found in environment/options.")
             ha_token = ""
+        else:
+            masked = ha_token[:4] + "..." + ha_token[-4:] if len(ha_token) > 8 else "***"
+            print(f"DEBUG: Found HA token: {masked}")
 
         ha_url = _first(
             _env("HA_URL"),

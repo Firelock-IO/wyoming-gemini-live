@@ -83,7 +83,7 @@ async def main():
             print(f"Error: Could not connect to {host}:{port}.")
             return
 
-    reader, writer = client.get_reader_writer()
+
     
     # Send AudioStart
     await client.write_event(AudioStart(rate=args.rate, width=2, channels=1).event())
@@ -167,7 +167,7 @@ async def main():
             if overflow:
                 print("Audio overflow")
                 
-            chunk = AudioChunk(rate=args.rate, data=bytes(data), timestamp=0)
+            chunk = AudioChunk(rate=args.rate, width=2, channels=1, audio=bytes(data), timestamp=0)
             await client.write_event(chunk.event())
             
     # Run both
