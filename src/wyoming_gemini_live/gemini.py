@@ -227,13 +227,23 @@ class GeminiLiveController:
                             await self._out.on_start(self._settings.output_sample_rate_hz)
                             self._output_stream_open = True
 
-                        # Gemini audio is 24kHz PCM16 mono; resample to configured output rate.
-                        pcm_out = resample_pcm16(
-                            audio_bytes,
-                            src_rate_hz=self._settings.gemini_output_sample_rate_hz,
-                            dst_rate_hz=self._settings.output_sample_rate_hz,
-                        )
-                        await self._out.on_chunk(pcm_out, self._settings.output_sample_rate_hz)
+                            # Gemini audio is 24kHz PCM16 mono; resample to configured output rate.
+                            _LOGGER.debug("Resampling %d bytes of audio...", len(audio_bytes))
+                            pcm_out = resample_pcm16(
+                                audio_bytes,
+                                src_rate_hz=self._settings.gemini_output_sample_rate_hz,
+                                dst_rate_hz=self._settings.output_sample_rate_hz,
+                            )
+                            _LOGGER.debug("Resampled to %d bytes. Sending to client...", len(pcm_out))
+                            await self._out.on_chunk(pcm_out, self._settings.output_sample_rate_hz)
+                        else:
+                            # Gemini audio is 24kHz PCM16 mono; resample to configured output rate.
+                            pcm_out = resample_pcm16(
+                                audio_bytes,
+                                src_rate_hz=self._settings.gemini_output_sample_rate_hz,
+                                dst_rate_hz=self._settings.output_sample_rate_hz,
+                            )
+                            await self._out.on_chunk(pcm_out, self._settings.output_sample_rate_hz)
 
                     # Text can show up too (debug)
                     if getattr(msg, "text", None):

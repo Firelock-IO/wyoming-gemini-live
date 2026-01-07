@@ -110,6 +110,7 @@ class Settings:
             options.get("ha_url") if isinstance(options, Mapping) else None,
             "http://homeassistant.local:8123",
         ) or "http://homeassistant.local:8123"
+        print(f"DEBUG: Using HA URL: {ha_url}")
 
         model = _first(
             _env("MODEL"),
