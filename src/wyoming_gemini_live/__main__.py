@@ -36,8 +36,18 @@ async def _async_main() -> None:
         logging.getLogger(__name__).error("Missing GEMINI_API_KEY (or add-on option gemini_api_key).")
         sys.exit(2)
 
+    from wyoming.zeroconf import HomeAssistantZeroconf
+    
     server = AsyncServer.from_uri(f"tcp://{settings.host}:{settings.port}")
     logging.getLogger(__name__).info("Listening on %s:%s", settings.host, settings.port)
+
+    # Register mDNS service
+    zeroconf_service = HomeAssistantZeroconf(
+        port=settings.port,
+        name="wyoming-gemini-live",
+        host=None,  # auto-detect
+    )
+    await zeroconf_service.register_server()
 
     await server.run(partial(GeminiLiveEventHandler, settings))
 

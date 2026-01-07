@@ -21,18 +21,68 @@ _LOGGER = logging.getLogger("client")
 
 async def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--host", default="localhost")
+    parser.add_argument("--host", help="Host IP (optional, defaults to auto-discovery)")
     parser.add_argument("--port", type=int, default=10700)
     parser.add_argument("--rate", type=int, default=16000)
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO)
     
-    print(f"Connecting to {args.host}:{args.port}...")
-    
-    client = AsyncTcpClient(args.host, args.port)
-    await client.connect()
-    
+    if args.host:
+        # User specified host
+        print(f"Connecting to {args.host}:{args.port}...")
+        client = AsyncTcpClient(args.host, args.port)
+        try:
+            await client.connect()
+            print("Connected! Speak into your microphone.")
+        except ConnectionRefusedError:
+            print(f"Error: Could not connect to {args.host}:{args.port}. Is the server running?")
+            return
+    else:
+        # Auto-discovery
+        from zeroconf import Zeroconf, ServiceBrowser
+        import time
+        
+        print("Scanning for Wyoming servers (mDNS)...")
+        zeroconf = Zeroconf()
+        discovered = []
+
+        class Listener:
+            def remove_service(self, zeroconf, type, name):
+                pass
+            def add_service(self, zeroconf, type, name):
+                info = zeroconf.get_service_info(type, name)
+                if info and info.addresses:
+                    # Convert bytes IP to string
+                    import socket
+                    ip = socket.inet_ntoa(info.addresses[0])
+                    discovered.append((ip, info.port, name))
+                    
+        browser = ServiceBrowser(zeroconf, "_wyoming._tcp.local.", Listener())
+        
+        # Scan for 3 seconds
+        end_time = time.time() + 3
+        while time.time() < end_time and not discovered:
+            await asyncio.sleep(0.5)
+            
+        zeroconf.close()
+        
+        if not discovered:
+            print("No Wyoming services found via discovery. Try specifying --host.")
+            return
+            
+        # Pick first
+        host, port, name = discovered[0]
+        print(f"Discovered {name} at {host}:{port}")
+        
+        client = AsyncTcpClient(host, port)
+        try:
+            await client.connect()
+            print("Connected! Speak into your microphone.")
+        except ConnectionRefusedError:
+            print(f"Error: Could not connect to {host}:{port}.")
+            return
+
     reader, writer = client.get_reader_writer()
     
     # Send AudioStart
