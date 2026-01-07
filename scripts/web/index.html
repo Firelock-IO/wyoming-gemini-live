@@ -25,6 +25,8 @@
         <h1>Wyoming Gemini Visualizer</h1>
         <div class="status" id="status">Connecting...</div>
 
+        <button id="talk-btn" class="btn" onclick="toggleMic()">START TALKING</button>
+
         <div class="meter-container mic">
             <div class="label"><span>Microphone</span> <span id="mic-val">0%</span></div>
             <div class="meter-bg"><div class="meter-fill" id="mic-bar"></div></div>
@@ -40,14 +42,16 @@
 
     <script>
         const statusEl = document.getElementById('status');
+        const talkBtn = document.getElementById('talk-btn');
         const micBar = document.getElementById('mic-bar');
         const geminiBar = document.getElementById('gemini-bar');
         const micVal = document.getElementById('mic-val');
         const geminiVal = document.getElementById('gemini-val');
         const logsEl = document.getElementById('logs');
+        let ws;
 
         function connect() {
-            const ws = new WebSocket(`ws://${location.host}/ws`);
+            ws = new WebSocket(`ws://${location.host}/ws`);
             
             ws.onmessage = (event) => {
                 const msg = JSON.parse(event.data);
@@ -55,6 +59,15 @@
                     const s = msg.data;
                     statusEl.textContent = s.status;
                     statusEl.style.color = s.status === 'Connected' ? '#4caf50' : '#ff9800';
+
+                    // Button State
+                    if (s.is_talking) {
+                        talkBtn.textContent = "STOP TALKING";
+                        talkBtn.style.background = "#f44336";
+                    } else {
+                        talkBtn.textContent = "START TALKING";
+                        talkBtn.style.background = "#2196f3";
+                    }
 
                     const micPct = Math.round(s.mic_level * 100);
                     const geminiPct = Math.round(s.gemini_level * 100);
@@ -77,7 +90,15 @@
             };
         }
 
+        function toggleMic() {
+            if (ws) ws.send(JSON.stringify({command: "toggle_mic"}));
+        }
+
         connect();
     </script>
+    <style>
+        .btn { width: 100%; padding: 15px; margin-bottom: 20px; border: none; border-radius: 8px; font-size: 1.2rem; font-weight: bold; cursor: pointer; color: white; background: #2196f3; transition: background 0.2s; }
+        .btn:hover { opacity: 0.9; }
+    </style>
 </body>
 </html>

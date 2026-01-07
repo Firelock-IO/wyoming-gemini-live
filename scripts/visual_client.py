@@ -26,10 +26,12 @@ state = {
     "mic_level": 0.0,
     "gemini_level": 0.0,
     "status": "Disconnected",
+    "is_talking": False,
     "logs": []
 }
 
 websockets = set()
+mic_event = asyncio.Event()
 
 def add_log(msg):
     _LOGGER.info(msg)
@@ -49,29 +51,34 @@ async def broadcast_state():
 
 def calculate_rms(data):
     """Calculate RMS amplitude from bytes."""
-    # Convert bytes to int16 numpy array
     samples = np.frombuffer(data, dtype=np.int16)
     if len(samples) == 0:
         return 0.0
-    # Normalize to 0.0 - 1.0 (float)
     floats = samples.astype(np.float32) / 32768.0
     rms = np.sqrt(np.mean(floats**2))
     return float(rms)
 
 async def web_handler(request):
-    """Serve the index.html."""
     with open("scripts/web/index.html", "r") as f:
         return web.Response(text=f.read(), content_type="text/html")
 
 async def ws_handler(request):
-    """Handle WebSocket connections."""
     ws = web.WebSocketResponse()
     await ws.prepare(request)
     websockets.add(ws)
-    await broadcast_state() # Send initial
+    await broadcast_state()
     try:
         async for msg in ws:
-            pass 
+            if msg.type == web.WSMsgType.TEXT:
+                data = json.loads(msg.data)
+                if data.get("command") == "toggle_mic":
+                    if state["is_talking"]:
+                        state["is_talking"] = False
+                        mic_event.clear()
+                    else:
+                        state["is_talking"] = True
+                        mic_event.set()
+                    await broadcast_state()
     finally:
         websockets.discard(ws)
     return ws
@@ -103,21 +110,17 @@ async def main():
     except Exception as e:
         state["status"] = f"Error: {e}"
         add_log(f"Connection failed: {e}")
-        # Keep web server running to show error
         while True: await asyncio.sleep(1)
-
-    await client.write_event(AudioStart(rate=args.rate, width=2, channels=1).event())
 
     loop = asyncio.get_running_loop()
     stop_event = asyncio.Event()
 
-    # Output Audio Stream (Speaker)
+    # Output Audio Stream
     output_stream = sd.OutputStream(
         samplerate=args.rate, channels=1, dtype='int16'
     )
     output_stream.start()
 
-    # Tasks
     async def receive_loop():
         add_log("Listening for audio response...")
         while True:
@@ -129,49 +132,52 @@ async def main():
                 break
             
             if AudioChunk.is_type(event.type):
-                chunk = AudioChunk.from_event(event) # audio attribute fixed in library usage?
-                # Library uses .audio actually, checking my previous fix...
-                # wait, library might use .audio or .data depending on version?
-                # The User log showed 'AudioChunk' object has no attribute 'data'.
-                # So it MUST be .audio.
-                # In client connection we construct it. Here we read it.
-                # AudioChunk definition in library uses 'audio' field.
-                
+                chunk = AudioChunk.from_event(event)
                 audio_data = chunk.audio
                 rms = calculate_rms(audio_data)
-                state["gemini_level"] = min(rms * 5, 1.0) # Boost visual level
-                
+                state["gemini_level"] = min(rms * 5, 1.0)
                 output_stream.write(np.frombuffer(audio_data, dtype=np.int16))
             elif AudioStop.is_type(event.type):
-                add_log("Audio Stop received")
                 state["gemini_level"] = 0.0
 
             await broadcast_state()
 
     async def mic_loop():
-        add_log("Microphone active.")
         input_stream = sd.InputStream(
             samplerate=args.rate, channels=1, dtype='int16', blocksize=1024
         )
         input_stream.start()
         
+        chunk_info = AudioChunk(rate=args.rate, width=2, channels=1, audio=b"", timestamp=0)
+
         while not stop_event.is_set():
+            # Wait for "Talking" state
+            if not state["is_talking"]:
+                state["mic_level"] = 0.0
+                await broadcast_state()
+                await mic_event.wait()
+                # Once activated, send Start
+                add_log("Mic Started (Sending AudioStart)")
+                await client.write_event(AudioStart(rate=args.rate, width=2, channels=1).event())
+
+            # Read audio
             data, overflow = await loop.run_in_executor(None, input_stream.read, 1024)
-            if overflow:
-                # ignore
-                pass
+            if overflow: pass
             
-            # Calculate RMS for visual
             rms = calculate_rms(bytes(data))
             state["mic_level"] = min(rms * 5, 1.0)
             
-            # Send to server
-            # FIX: Use 'audio' not 'data'
-            chunk = AudioChunk(rate=args.rate, width=2, channels=1, audio=bytes(data), timestamp=0)
-            await client.write_event(chunk.event())
-            
-            # Broadcast update periodically to avoid spamming? 
-            # 16000hz / 1024 = 15 updates/sec. OK.
+            # Send chunk if talking
+            if state["is_talking"]:
+                chunk_info.audio = bytes(data)
+                await client.write_event(chunk_info.event())
+            else:
+                # Just stopped talking
+                add_log("Mic Stopped (Sending AudioStop)")
+                await client.write_event(AudioStop().event())
+                # prevent spamming STOP
+                mic_event.clear()
+
             await broadcast_state()
 
     await asyncio.gather(receive_loop(), mic_loop())
