@@ -1,5 +1,5 @@
 name: "Wyoming Gemini Live"
-version: "1.0.5"
+version: "1.0.6"
 slug: "wyoming_gemini_live"
 description: "Gemini Live (native audio) gateway with Home Assistant tool control, exposed via Wyoming (TCP)."
 url: "https://github.com/Firelock-IO/wyoming-gemini-live"
