@@ -1,6 +1,6 @@
 [project]
 name = "wyoming-gemini-live"
-version = "1.0.7"
+version = "1.0.8"
 description = "Gemini Live (native audio) voice gateway with Home Assistant tool control"
 readme = "README.md"
 requires-python = ">=3.12"
