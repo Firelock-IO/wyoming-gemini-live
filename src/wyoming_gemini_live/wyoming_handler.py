@@ -72,7 +72,7 @@ class GeminiLiveEventHandler(AsyncEventHandler):
         if AudioChunk.is_type(event.type):
             chunk = AudioChunk.from_event(event)
             rate = int(getattr(chunk, "rate", self._input_rate_hz))
-            await self._gemini.enqueue_audio(chunk.data, src_rate_hz=rate)
+            await self._gemini.enqueue_audio(chunk.audio, src_rate_hz=rate)
             return True
 
         if AudioStop.is_type(event.type):

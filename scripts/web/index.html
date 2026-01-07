@@ -1,0 +1,83 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Live Debugger</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; }
+        .container { width: 400px; padding: 20px; background: #1e1e1e; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        h1 { text-align: center; color: #aaa; margin-bottom: 20px; font-size: 1.2rem; }
+        .meter-container { margin-bottom: 20px; }
+        .label { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.9rem; color: #888; }
+        .meter-bg { width: 100%; height: 20px; background: #333; border-radius: 10px; overflow: hidden; }
+        .meter-fill { height: 100%; width: 0%; transition: width 0.05s linear; }
+        .mic .meter-fill { background: #4caf50; }
+        .gemini .meter-fill { background: #2196f3; }
+        .status { text-align: center; margin-bottom: 20px; font-weight: bold; color: #ff9800; }
+        .logs { height: 150px; overflow-y: auto; background: #000; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.8rem; color: #ccc; }
+        .log-line { margin-bottom: 2px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Wyoming Gemini Visualizer</h1>
+        <div class="status" id="status">Connecting...</div>
+
+        <div class="meter-container mic">
+            <div class="label"><span>Microphone</span> <span id="mic-val">0%</span></div>
+            <div class="meter-bg"><div class="meter-fill" id="mic-bar"></div></div>
+        </div>
+
+        <div class="meter-container gemini">
+            <div class="label"><span>Gemini Output</span> <span id="gemini-val">0%</span></div>
+            <div class="meter-bg"><div class="meter-fill" id="gemini-bar"></div></div>
+        </div>
+
+        <div class="logs" id="logs"></div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const micBar = document.getElementById('mic-bar');
+        const geminiBar = document.getElementById('gemini-bar');
+        const micVal = document.getElementById('mic-val');
+        const geminiVal = document.getElementById('gemini-val');
+        const logsEl = document.getElementById('logs');
+
+        function connect() {
+            const ws = new WebSocket(`ws://${location.host}/ws`);
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                if (msg.type === 'state') {
+                    const s = msg.data;
+                    statusEl.textContent = s.status;
+                    statusEl.style.color = s.status === 'Connected' ? '#4caf50' : '#ff9800';
+
+                    const micPct = Math.round(s.mic_level * 100);
+                    const geminiPct = Math.round(s.gemini_level * 100);
+
+                    micBar.style.width = `${micPct}%`;
+                    micVal.textContent = `${micPct}%`;
+                    
+                    geminiBar.style.width = `${geminiPct}%`;
+                    geminiVal.textContent = `${geminiPct}%`;
+
+                    logsEl.innerHTML = s.logs.map(l => `<div class="log-line">${l}</div>`).join('');
+                    logsEl.scrollTop = logsEl.scrollHeight;
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.textContent = "Disconnected (Retrying...)";
+                statusEl.style.color = "#f44336";
+                setTimeout(connect, 1000);
+            };
+        }
+
+        connect();
+    </script>
+</body>
+</html>
