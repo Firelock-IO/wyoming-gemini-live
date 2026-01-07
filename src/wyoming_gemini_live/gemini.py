@@ -197,59 +197,59 @@ class GeminiLiveController:
 
             saw_audio = False
 
-                try:
-                    async for msg in turn:
-                        # Fast-path: audio bytes show up as msg.data in many samples.
-                        audio_bytes: bytes | None = None
-                        if getattr(msg, "data", None):
-                            if isinstance(msg.data, (bytes, bytearray)):
-                                audio_bytes = bytes(msg.data)
+            try:
+                async for msg in turn:
+                    # Fast-path: audio bytes show up as msg.data in many samples.
+                    audio_bytes: bytes | None = None
+                    if getattr(msg, "data", None):
+                        if isinstance(msg.data, (bytes, bytearray)):
+                            audio_bytes = bytes(msg.data)
 
-                        # Slow-path: structured server content (model_turn parts)
-                        if audio_bytes is None:
-                            server_content = getattr(msg, "server_content", None)
-                            model_turn = getattr(server_content, "model_turn", None) if server_content else None
-                            if model_turn and getattr(model_turn, "parts", None):
-                                for part in model_turn.parts:
-                                    inline = getattr(part, "inline_data", None)
-                                    if inline and isinstance(getattr(inline, "data", None), (bytes, bytearray)):
-                                        audio_bytes = bytes(inline.data)
-                                        break
+                    # Slow-path: structured server content (model_turn parts)
+                    if audio_bytes is None:
+                        server_content = getattr(msg, "server_content", None)
+                        model_turn = getattr(server_content, "model_turn", None) if server_content else None
+                        if model_turn and getattr(model_turn, "parts", None):
+                            for part in model_turn.parts:
+                                inline = getattr(part, "inline_data", None)
+                                if inline and isinstance(getattr(inline, "data", None), (bytes, bytearray)):
+                                    audio_bytes = bytes(inline.data)
+                                    break
 
-                        if audio_bytes:
-                            saw_audio = True
-                            if self._barge_in:
-                                # User started talking; stop forwarding model speech.
-                                continue
+                    if audio_bytes:
+                        saw_audio = True
+                        if self._barge_in:
+                            # User started talking; stop forwarding model speech.
+                            continue
 
-                            # Open an output stream on first audio chunk
-                            if not self._output_stream_open:
-                                await self._out.on_start(self._settings.output_sample_rate_hz)
-                                self._output_stream_open = True
+                        # Open an output stream on first audio chunk
+                        if not self._output_stream_open:
+                            await self._out.on_start(self._settings.output_sample_rate_hz)
+                            self._output_stream_open = True
 
-                            # Gemini audio is 24kHz PCM16 mono; resample to configured output rate.
-                            pcm_out = resample_pcm16(
-                                audio_bytes,
-                                src_rate_hz=self._settings.gemini_output_sample_rate_hz,
-                                dst_rate_hz=self._settings.output_sample_rate_hz,
-                            )
-                            await self._out.on_chunk(pcm_out, self._settings.output_sample_rate_hz)
+                        # Gemini audio is 24kHz PCM16 mono; resample to configured output rate.
+                        pcm_out = resample_pcm16(
+                            audio_bytes,
+                            src_rate_hz=self._settings.gemini_output_sample_rate_hz,
+                            dst_rate_hz=self._settings.output_sample_rate_hz,
+                        )
+                        await self._out.on_chunk(pcm_out, self._settings.output_sample_rate_hz)
 
-                        # Text can show up too (debug)
-                        if getattr(msg, "text", None):
-                            _LOGGER.debug("Gemini text: %s", msg.text)
+                    # Text can show up too (debug)
+                    if getattr(msg, "text", None):
+                        _LOGGER.debug("Gemini text: %s", msg.text)
 
-                        # Tool calls
-                        tool_call = getattr(msg, "tool_call", None)
-                        if tool_call and getattr(tool_call, "function_calls", None):
-                            await self._handle_tool_calls(session, tool_call.function_calls)
+                    # Tool calls
+                    tool_call = getattr(msg, "tool_call", None)
+                    if tool_call and getattr(tool_call, "function_calls", None):
+                        await self._handle_tool_calls(session, tool_call.function_calls)
 
-                except Exception as e:
-                    # Check for ConnectionClosedOK (generic check to avoid importing websockets)
-                    if "ConnectionClosedOK" in type(e).__name__:
-                        _LOGGER.info("Gemini connection closed gracefully.")
-                        break
-                    raise
+            except Exception as e:
+                # Check for ConnectionClosedOK (generic check to avoid importing websockets)
+                if "ConnectionClosedOK" in type(e).__name__:
+                    _LOGGER.info("Gemini connection closed gracefully.")
+                    break
+                raise
 
             # Turn complete.
             if self._output_stream_open:
