@@ -177,10 +177,12 @@ class GeminiLiveController:
         while True:
             pcm16 = await self._input_audio_queue.get()
 
-            # MUST use types.Blob - the SDK handles this differently than a plain dict
-            # This exact pattern was working at 16:16
-            blob = types.Blob(data=pcm16, mime_type=f"audio/pcm;rate={rate}")
-            await session.send_realtime_input(audio=blob)
+            # EXACT pattern from Google docs:
+            # https://ai.google.dev/gemini-api/docs/live?example=mic-stream
+            # msg = {"data": data, "mime_type": "audio/pcm"}
+            # await session.send_realtime_input(audio=msg)
+            msg = {"data": pcm16, "mime_type": "audio/pcm"}
+            await session.send_realtime_input(audio=msg)
 
     async def _recv_loop(self, session: Any) -> None:
         """Receive turns from Gemini and forward audio + tool calls."""
