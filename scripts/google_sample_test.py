@@ -20,7 +20,10 @@ CHUNK_SIZE = 1024
 MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
 
 # Get API key from env or hardcode for testing
-API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyD4Us4eR65IlhTbJSdCzvWhSWNfHSuoAso")
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    print("ERROR: Set GEMINI_API_KEY environment variable")
+    exit(1)
 
 client = genai.Client(
     http_options={"api_version": "v1beta"},
