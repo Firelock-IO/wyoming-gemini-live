@@ -131,14 +131,22 @@ async def main():
                 stop_event.set()
                 break
             
+            _LOGGER.info(f"Received event: {event.type}") 
+
             if AudioChunk.is_type(event.type):
-                chunk = AudioChunk.from_event(event)
+                chunk = AudioChunk.from_event(event) 
                 audio_data = chunk.audio
+                _LOGGER.info(f"Received AudioChunk: {len(audio_data)} bytes")
+                
                 rms = calculate_rms(audio_data)
                 state["gemini_level"] = min(rms * 5, 1.0)
+                
                 output_stream.write(np.frombuffer(audio_data, dtype=np.int16))
             elif AudioStop.is_type(event.type):
+                add_log("Audio Stop received")
                 state["gemini_level"] = 0.0
+            else:
+                 _LOGGER.info(f"Ignored event: {event.type}")
 
             await broadcast_state()
 
