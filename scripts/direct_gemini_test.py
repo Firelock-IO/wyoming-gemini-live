@@ -16,7 +16,10 @@ CHUNK_SIZE = 1024
 RECORD_SECONDS = 5
 
 MODEL = "models/gemini-2.5-flash-native-audio-preview-12-2025"
-API_KEY = os.environ.get("GEMINI_API_KEY", "REDACTED")
+API_KEY = os.environ.get("GEMINI_API_KEY")
+if not API_KEY:
+    print("ERROR: Set GEMINI_API_KEY environment variable")
+    exit(1)
 
 client = genai.Client(
     http_options={"api_version": "v1beta"},
