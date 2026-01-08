@@ -232,10 +232,13 @@ class GeminiLiveController:
                         # Split large chunks into smaller Wyoming chunks (e.g. 2048 bytes)
                         # Some clients or network layers might struggle with 30KB+ events.
                         chunk_size = 2048
+                        chunk_count = 0
                         for i in range(0, len(pcm_out), chunk_size):
                             chunk = pcm_out[i : i + chunk_size]
                             if chunk:
                                 await self._out.on_chunk(chunk, self._settings.output_sample_rate_hz)
+                                chunk_count += 1
+                        _LOGGER.debug(f"DEBUG: Sent {chunk_count} chunks (size ~{chunk_size}) to client.")
 
                     # Text can show up too (debug)
                     if getattr(msg, "text", None):
