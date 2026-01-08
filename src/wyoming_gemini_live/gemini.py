@@ -177,9 +177,9 @@ class GeminiLiveController:
         while True:
             pcm16 = await self._input_audio_queue.get()
 
-            # Use session.send() with dict format - matches Google's working sample pattern
-            msg = {"data": pcm16, "mime_type": "audio/pcm"}
-            await session.send(input=msg)
+            # Use send_realtime_input with audio dict - this produces the correct wire format
+            # that worked at 16:16 with {"realtime_input": {"audio": {...}}}
+            await session.send_realtime_input(audio={"data": pcm16, "mime_type": "audio/pcm"})
 
     async def _recv_loop(self, session: Any) -> None:
         """Receive turns from Gemini and forward audio + tool calls."""
