@@ -177,12 +177,10 @@ class GeminiLiveController:
         while True:
             pcm16 = await self._input_audio_queue.get()
 
-            # EXACT pattern from Google docs:
-            # https://ai.google.dev/gemini-api/docs/live?example=mic-stream
-            # msg = {"data": data, "mime_type": "audio/pcm"}
-            # await session.send_realtime_input(audio=msg)
+            # AI Studio sample uses session.send(input=msg), NOT send_realtime_input!
+            # This is what worked in our direct test (the screeching audio)
             msg = {"data": pcm16, "mime_type": "audio/pcm"}
-            await session.send_realtime_input(audio=msg)
+            await session.send(input=msg)
 
     async def _recv_loop(self, session: Any) -> None:
         """Receive turns from Gemini and forward audio + tool calls."""
