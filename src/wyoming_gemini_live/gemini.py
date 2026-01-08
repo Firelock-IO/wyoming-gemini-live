@@ -177,9 +177,10 @@ class GeminiLiveController:
         while True:
             pcm16 = await self._input_audio_queue.get()
 
-            # Use send_realtime_input with audio dict including sample rate
-            # The rate in mime_type is REQUIRED - working version at 16:16 had "audio/pcm;rate=16000"
-            await session.send_realtime_input(audio={"data": pcm16, "mime_type": f"audio/pcm;rate={rate}"})
+            # MUST use types.Blob - the SDK handles this differently than a plain dict
+            # This exact pattern was working at 16:16
+            blob = types.Blob(data=pcm16, mime_type=f"audio/pcm;rate={rate}")
+            await session.send_realtime_input(audio=blob)
 
     async def _recv_loop(self, session: Any) -> None:
         """Receive turns from Gemini and forward audio + tool calls."""
