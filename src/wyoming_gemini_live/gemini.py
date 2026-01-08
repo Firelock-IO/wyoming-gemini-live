@@ -177,15 +177,9 @@ class GeminiLiveController:
         while True:
             pcm16 = await self._input_audio_queue.get()
 
-            blob = types.Blob(
-                data=pcm16,
-                mime_type=f"audio/pcm;rate={rate}",
-            )
-            # SDKs may expose either `send_realtime_input` (preferred) or a generic `send`.
-            if hasattr(session, "send_realtime_input"):
-                await session.send_realtime_input(audio=blob)
-            else:
-                await session.send(input={"data": pcm16, "mime_type": f"audio/pcm;rate={rate}"})
+            # Use session.send() with dict format - matches Google's working sample pattern
+            msg = {"data": pcm16, "mime_type": "audio/pcm"}
+            await session.send(input=msg)
 
     async def _recv_loop(self, session: Any) -> None:
         """Receive turns from Gemini and forward audio + tool calls."""
