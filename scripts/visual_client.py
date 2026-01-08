@@ -123,32 +123,49 @@ async def main():
 
     async def receive_loop():
         add_log("Listening for audio response...")
-        while True:
-            event = await client.read_event()
-            if event is None:
-                add_log("Server disconnected")
-                state["status"] = "Disconnected"
-                stop_event.set()
-                break
-            
-            _LOGGER.info(f"Received event: {event.type}") 
+        try:
+            while True:
+                try:
+                    event = await client.read_event()
+                except Exception as e:
+                    _LOGGER.error(f"Error reading event: {e}")
+                    add_log(f"Protocol error: {e}")
+                    break
 
-            if AudioChunk.is_type(event.type):
-                chunk = AudioChunk.from_event(event) 
-                audio_data = chunk.audio
-                _LOGGER.info(f"Received AudioChunk: {len(audio_data)} bytes")
+                if event is None:
+                    add_log("Server disconnected")
+                    state["status"] = "Disconnected"
+                    stop_event.set()
+                    break
                 
-                rms = calculate_rms(audio_data)
-                state["gemini_level"] = min(rms * 5, 1.0)
-                
-                output_stream.write(np.frombuffer(audio_data, dtype=np.int16))
-            elif AudioStop.is_type(event.type):
-                add_log("Audio Stop received")
-                state["gemini_level"] = 0.0
-            else:
-                 _LOGGER.info(f"Ignored event: {event.type}")
+                _LOGGER.info(f"Received event: {event.type}") 
 
-            await broadcast_state()
+                if AudioChunk.is_type(event.type):
+                    try:
+                        chunk = AudioChunk.from_event(event) 
+                        audio_data = chunk.audio
+                        _LOGGER.info(f"Received AudioChunk: {len(audio_data)} bytes")
+                        
+                        rms = calculate_rms(audio_data)
+                        state["gemini_level"] = min(rms * 5, 1.0)
+                        
+                        # Use a small buffer to avoid blocking the loop too much
+                        # but write it out to the stream.
+                        output_stream.write(np.frombuffer(audio_data, dtype=np.int16))
+                    except Exception as e:
+                         _LOGGER.error(f"Error processing AudioChunk: {e}")
+                elif AudioStart.is_type(event.type):
+                    add_log("Audio Start received from Gemini")
+                elif AudioStop.is_type(event.type):
+                    add_log("Audio Stop received")
+                    state["gemini_level"] = 0.0
+                else:
+                     _LOGGER.info(f"Ignored event: {event.type}")
+
+                await broadcast_state()
+        except Exception as e:
+            _LOGGER.error(f"CRITICAL: receive_loop crashed: {e}")
+            add_log(f"Receiver crashed: {e}")
 
     async def mic_loop():
         input_stream = sd.InputStream(
